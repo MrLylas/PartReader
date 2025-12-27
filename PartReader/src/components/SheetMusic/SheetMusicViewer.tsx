@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { osmdService } from '@/services/osmdService';
 
 interface SheetMusicViewerProps {
@@ -15,26 +15,63 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [zoom, setZoom] = useState(1);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const initAttemptRef = useRef(0);
+
+  // Fonction pour vérifier si le conteneur a des dimensions valides
+  const waitForContainerDimensions = useCallback((): Promise<void> => {
+    return new Promise((resolve) => {
+      const checkDimensions = () => {
+        if (containerRef.current) {
+          const { offsetWidth, offsetHeight } = containerRef.current;
+          if (offsetWidth > 0 && offsetHeight > 0) {
+            resolve();
+            return;
+          }
+        }
+        // Réessayer après un court délai
+        if (initAttemptRef.current < 20) {
+          initAttemptRef.current++;
+          requestAnimationFrame(checkDimensions);
+        } else {
+          // Timeout - résoudre quand même après 20 tentatives
+          resolve();
+        }
+      };
+      checkDimensions();
+    });
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return;
 
-    osmdService.initialize(containerRef.current);
+    const initializeOSMD = async () => {
+      await waitForContainerDimensions();
+      osmdService.initialize(containerRef.current!);
+      setIsInitialized(true);
+    };
+
+    initializeOSMD();
 
     return () => {
       osmdService.dispose();
+      setIsInitialized(false);
+      initAttemptRef.current = 0;
     };
-  }, []);
+  }, [waitForContainerDimensions]);
 
   useEffect(() => {
-    if (!musicXml) return;
+    if (!musicXml || !isInitialized) return;
 
     const loadScore = async () => {
       setIsLoading(true);
       try {
+        // Petit délai pour s'assurer que le DOM est stable
+        await new Promise(resolve => setTimeout(resolve, 100));
         await osmdService.loadMusicXML(musicXml);
         onLoad?.();
       } catch (error) {
+        console.error('Erreur chargement partition:', error);
         onError?.(error as Error);
       } finally {
         setIsLoading(false);
@@ -42,7 +79,7 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
     };
 
     loadScore();
-  }, [musicXml, onLoad, onError]);
+  }, [musicXml, isInitialized, onLoad, onError]);
 
   const handleZoomIn = () => {
     const newZoom = Math.min(zoom + 0.1, 2);
@@ -57,7 +94,7 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
   };
 
   return (
-    <div className="relative w-full h-full bg-white rounded-lg shadow-sm">
+    <div className="relative w-full min-h-[60vh] bg-white rounded-lg shadow-sm">
       {/* Contrôles de zoom */}
       <div className="absolute top-4 right-4 flex gap-2 z-10">
         <button
@@ -96,7 +133,7 @@ export const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
       {/* Conteneur OSMD */}
       <div
         ref={containerRef}
-        className="w-full h-full overflow-auto p-4"
+        className="w-full min-h-[60vh] overflow-auto p-4"
       />
     </div>
   );

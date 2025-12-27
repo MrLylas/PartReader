@@ -1,34 +1,33 @@
+# Étape 2.1 - Assemblage de l'Application
+
+## Objectif
+Intégrer tous les composants créés dans l'Étape 1 pour avoir une application fonctionnelle.
+
+## Tâches
+
+### 1. Refactoriser `App.tsx`
+Remplacer le template Vite par défaut par l'architecture de l'application.
+
+```tsx
 import { useState } from 'react';
 import { FileUploader } from '@/components/Upload/FileUploader';
 import { SheetMusicViewer } from '@/components/SheetMusic/SheetMusicViewer';
 import { PlayerControls } from '@/components/Player/PlayerControls';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import type { MusicScore } from '@/types/music';
-import { parserService } from '@/services/parserService';
 
 function App() {
   const [musicXml, setMusicXml] = useState<string | null>(null);
   const [score, setScore] = useState<MusicScore | null>(null);
   const [fileName, setFileName] = useState<string>('');
-  const [parseError, setParseError] = useState<string | null>(null);
 
-  const { state, isPreloading, play, pause, stop, seekTo, setTempo, setVolume } = useAudioPlayer(score);
+  const { state, play, pause, stop, seekTo, setTempo, setVolume } = useAudioPlayer(score);
 
   const handleFileLoad = (content: string, name: string) => {
-    setParseError(null);
     setMusicXml(content);
     setFileName(name);
-    //Parser le MusicXML en MusicScore
-      try {
-        const parsedScore = parserService.parseMusicXML(content);
-        setScore(parsedScore);
-      } catch (error) {
-        console.error('Erreur de parsing:', error);
-        setParseError('Impossible de lire ce fichier MusicXML');
-      }
+    // TODO: Parser le MusicXML en MusicScore
   };
-
-  
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -43,12 +42,6 @@ function App() {
         ) : (
           <>
             <SheetMusicViewer musicXml={musicXml} />
-            {isPreloading && (
-              <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                <p className="text-sm text-blue-600">Chargement des sons...</p>
-              </div>
-            )}
             <PlayerControls
               playbackState={state.playbackState}
               currentTime={state.currentTime}
@@ -61,26 +54,8 @@ function App() {
               onSeek={seekTo}
               onTempoChange={setTempo}
               onVolumeChange={setVolume}
-              disabled={isPreloading}
             />
           </>
-        )}
-        {musicXml && (
-          <button
-            onClick={() => {
-              setMusicXml(null);
-              setScore(null);
-              setFileName('');
-            }}
-            className="text-sm text-gray-500 hover:text-gray-700"
-          >
-            ← Charger une autre partition
-          </button>
-        )}
-        {parseError && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-red-600">{parseError}</p>
-          </div>
         )}
       </main>
     </div>
@@ -88,3 +63,33 @@ function App() {
 }
 
 export default App;
+```
+
+### 2. Layout responsive
+- Zone partition : 60-70% de l'écran
+- Contrôles : Barre fixe en bas
+- Mobile : Stack vertical
+
+### 3. Ajouter un bouton pour charger une nouvelle partition
+
+```tsx
+{musicXml && (
+  <button
+    onClick={() => {
+      setMusicXml(null);
+      setScore(null);
+      setFileName('');
+    }}
+    className="text-sm text-gray-500 hover:text-gray-700"
+  >
+    ← Charger une autre partition
+  </button>
+)}
+```
+
+## Critères de validation
+- [ ] L'application affiche le FileUploader au démarrage
+- [ ] Après upload, la partition s'affiche
+- [ ] Les contrôles du player sont visibles
+- [ ] Le layout est responsive
+- [ ] On peut revenir à l'écran d'upload

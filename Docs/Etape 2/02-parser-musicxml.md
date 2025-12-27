@@ -1,3 +1,20 @@
+# Étape 2.2 - Implémentation du Parser MusicXML
+
+## Objectif
+Convertir les fichiers MusicXML en objets `MusicScore` utilisables par l'application.
+
+## Contexte
+MusicXML est un format XML standard pour les partitions. Il contient :
+- Métadonnées (titre, compositeur)
+- Parties/instruments
+- Mesures avec notes, silences, dynamiques
+
+## Tâches
+
+### 1. Compléter `parserService.ts`
+
+```typescript
+// src/services/parserService.ts
 import type { MusicScore, Part, Note, Measure, TimeSignature, KeySignature } from '@/types/music';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -180,3 +197,62 @@ class ParserService {
 }
 
 export const parserService = new ParserService();
+```
+
+### 2. Intégrer le parser dans App.tsx
+
+```typescript
+import { parserService } from '@/services/parserService';
+
+const handleFileLoad = (content: string, name: string) => {
+  setMusicXml(content);
+  setFileName(name);
+  
+  try {
+    const parsedScore = parserService.parseMusicXML(content);
+    setScore(parsedScore);
+  } catch (error) {
+    console.error('Erreur de parsing:', error);
+    // Afficher une erreur à l'utilisateur
+  }
+};
+```
+
+### 3. Gestion des erreurs
+
+```tsx
+const [parseError, setParseError] = useState<string | null>(null);
+
+const handleFileLoad = (content: string, name: string) => {
+  setParseError(null);
+  setMusicXml(content);
+  setFileName(name);
+  
+  try {
+    const parsedScore = parserService.parseMusicXML(content);
+    setScore(parsedScore);
+  } catch (error) {
+    setParseError('Impossible de lire ce fichier MusicXML');
+    console.error('Erreur de parsing:', error);
+  }
+};
+
+// Dans le JSX
+{parseError && (
+  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+    <p className="text-red-600">{parseError}</p>
+  </div>
+)}
+```
+
+## Tests à effectuer
+- [ ] Parser un fichier MusicXML simple (une seule partie)
+- [ ] Parser un fichier avec plusieurs parties
+- [ ] Vérifier l'extraction du tempo
+- [ ] Vérifier les durées des notes
+- [ ] Tester avec des fichiers invalides
+
+## Ressources
+- [MusicXML Documentation](https://www.musicxml.com/for-developers/)
+- [MusicXML Examples](https://www.musicxml.com/music-in-musicxml/)
+- [MusicXML Tutorial](https://www.musicxml.com/tutorial/)

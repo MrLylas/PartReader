@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+import extractMxl from '@/utils/mxlExtractor';
 
 interface FileUploaderProps {
   onFileLoad: (content: string, fileName: string) => void;
@@ -12,27 +13,36 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleFile = useCallback(
-    async (file: File) => {
-      setError(null);
+  // Dans FileUploader.tsx - modifier handleFile
 
-      // Vérifier l'extension
-      const extension = '.' + file.name.split('.').pop()?.toLowerCase();
-      if (!acceptedFormats.includes(extension)) {
-        setError(`Format non supporté. Formats acceptés: ${acceptedFormats.join(', ')}`);
-        return;
-      }
+const handleFile = useCallback(
+  async (file: File) => {
+    setError(null);
 
-      try {
-        const content = await file.text();
-        onFileLoad(content, file.name);
-      } catch (err) {
-        setError('Erreur lors de la lecture du fichier');
-        console.error(err);
+    const extension = '.' + file.name.split('.').pop()?.toLowerCase();
+    if (!acceptedFormats.includes(extension)) {
+      setError(`Format non supporté. Formats acceptés: ${acceptedFormats.join(', ')}`);
+      return;
+    }
+
+    try {
+      let content: string;
+      
+      // Si c'est un fichier .mxl, le décompresser
+      if (extension === '.mxl') {
+        content = await extractMxl(file);
+      } else {
+        content = await file.text();
       }
-    },
-    [acceptedFormats, onFileLoad]
-  );
+      
+      onFileLoad(content, file.name);
+    } catch (err) {
+      setError('Erreur lors de la lecture du fichier');
+      console.error(err);
+    }
+  },
+  [acceptedFormats, onFileLoad]
+);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
